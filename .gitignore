@@ -1,0 +1,30 @@
+# ===== FRONTEND =====
+frontend/node_modules/
+frontend/dist/
+
+# ===== BACKEND =====
+backend/venv/
+backend/__pycache__/
+backend/.pytest_cache/
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# ===== PYTHON =====
+*.pyc
+__pycache__/
+
+# ===== ENV =====
+.env
+frontend/.env
+backend/.env
+
+# ===== LOG / LOCAL FILES =====
+*.log
+*.sqlite3
+.python-version
+
+# ===== IDE / OS =====
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
