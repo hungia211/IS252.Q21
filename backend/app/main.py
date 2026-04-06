@@ -1,6 +1,7 @@
 from fastapi import FastAPI
-from app.routers import users, upload
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers.rough_set import router as rough_set_router
+
 
 app = FastAPI(title="Backend API")
 
@@ -12,13 +13,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(users.router)
-app.include_router(upload.router)
+app.include_router(rough_set_router)
 
 @app.get("/")
 def root():
     return {"message": "Xin chào các bạn!"}
 
-@app.get("/test")
-async def test_api():
-    return {"message": "API hoạt động tốt!"}
