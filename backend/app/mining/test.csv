@@ -1,0 +1,11 @@
+troi,nhiet_do,do_am,gio,choi
+nang,cao,cao,yeu,khong
+nang,cao,cao,manh,khong
+may,cao,cao,yeu,co
+mua,vua,cao,yeu,co
+mua,thap,vua,yeu,co
+mua,thap,vua,manh,khong
+may,thap,vua,manh,co
+nang,vua,cao,yeu,khong
+nang,thap,vua,yeu,co
+mua,vua,vua,yeu,co
