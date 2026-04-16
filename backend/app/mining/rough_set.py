@@ -1,3 +1,4 @@
+# pip install pandas openpyxl
 from itertools import combinations
 
 

@@ -1,5 +1,5 @@
 from fastapi import HTTPException, UploadFile
-from app.services.file_service import load_uploaded_csv, parse_comma_separated_list
+from app.services.file_service import load_uploaded_table, parse_comma_separated_list
 from app.mining.rough_set import (
     calculate_approximation,
     analyze_dependency,
@@ -13,7 +13,7 @@ async def process_rough_approximation(
     x_objects: str,
     b_attributes: str,
 ):
-    df = await load_uploaded_csv(file)
+    df = await load_uploaded_table(file)
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file has no data.")
@@ -60,7 +60,7 @@ async def process_dependency_analysis(
     decision_attr: str,
     condition_attrs: str,
 ):
-    df = await load_uploaded_csv(file)
+    df = await load_uploaded_table(file)
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file has no data.")
@@ -105,7 +105,7 @@ async def process_dependency_analysis(
 
 
 async def process_reduct_analysis(file: UploadFile):
-    df = await load_uploaded_csv(file)
+    df = await load_uploaded_table(file)
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file has no data.")
