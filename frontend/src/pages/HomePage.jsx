@@ -21,7 +21,6 @@ function HomePage() {
 
   return (
     <div style={{ padding: "20px" }}>
-      <h1>Trang chủ</h1>
       {error ? <p>{error}</p> : <p>Phản hồi từ backend: {message}</p>}
     </div>
   );
