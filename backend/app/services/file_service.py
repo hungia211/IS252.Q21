@@ -69,10 +69,6 @@ async def load_uploaded_table(file: UploadFile) -> pd.DataFrame:
     return _read_excel_from_bytes(content)
 
 
-async def load_uploaded_csv(file: UploadFile) -> pd.DataFrame:
-    return await load_uploaded_table(file)
-
-
 async def load_multiple_uploaded_tables(files: List[UploadFile]) -> List[dict]:
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded.")

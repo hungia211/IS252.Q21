@@ -184,7 +184,7 @@ def analyze_frequent_itemsets_and_rules(
         ]
 
     return {
-        "min_mupport":      min_support,
+        "min_support":      min_support,
         "min_confidence":   min_confidence,
         "frequent_itemsets":               serialize_itemsets(frequent_itemsets),
         "total_frequent_itemsets":         len(frequent_itemsets),
