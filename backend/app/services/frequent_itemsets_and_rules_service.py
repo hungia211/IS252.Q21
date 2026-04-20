@@ -1,5 +1,5 @@
 from fastapi import HTTPException, UploadFile
-from app.services.file_service import load_uploaded_csv
+from app.services.file_service import load_uploaded_table
 from app.mining.frequent_itemsets_and_rules import analyze_frequent_itemsets_and_rules
 
 
@@ -8,7 +8,7 @@ async def process_frequent_itemsets_and_rules(
     min_support: float,
     min_confidence: float,
 ):
-    df = await load_uploaded_csv(file)
+    df = await load_uploaded_table(file)
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file has no data.")

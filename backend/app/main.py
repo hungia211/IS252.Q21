@@ -4,6 +4,7 @@ from app.routers.rough_set import router as rough_set_router
 from app.routers.classification import router as classification_router
 from app.routers.pre_processing_router import router as pre_processing_router
 from app.routers.frequent_itemsets_and_rules_router import router as frequent_itemsets_and_rules_router
+from app.routers.clustering_router import router as clustering_router
 
 
 app = FastAPI(title="Backend API")
@@ -20,6 +21,7 @@ app.include_router(rough_set_router)
 app.include_router(classification_router)
 app.include_router(pre_processing_router)
 app.include_router(frequent_itemsets_and_rules_router)
+app.include_router(clustering_router)
 
 @app.get("/")
 def root():

@@ -1,11 +1,11 @@
 import pandas as pd
 from fastapi import HTTPException, UploadFile
-from app.services.file_service import load_uploaded_csv
+from app.services.file_service import load_uploaded_table
 from app.mining.pre_processing import analyze_pearson
 
 
 async def process_pearson_correlation(file: UploadFile):
-    df = await load_uploaded_csv(file)
+    df = await load_uploaded_table(file)
 
     if df.empty:
         raise HTTPException(status_code=400, detail="CSV file has no data.")
