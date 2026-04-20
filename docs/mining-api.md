@@ -552,8 +552,428 @@ curl -X POST http://localhost:8000/rough-set/reduct ^
   "total_exact_rules": 6
 }
 ```
+---
+## 5. Nhóm Pre Processing
 
-## 5. Các lỗi validate thường gặp
+## 5.1. `POST /pre_processing/pearson_correlation`
+
+### Mục đích
+
+Tính hệ số tương quan Pearson giữa hai cột số trong dataset, đồng thời trả về phương trình hồi quy tuyến tính và biểu đồ scatter plot dạng base64.
+
+### Input
+
+| Trường | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `file` | File | Có | File dữ liệu, phải có đúng 2 cột số |
+
+### Lưu ý về file đầu vào
+
+- File phải có đúng **2 cột**.
+- Cả 2 cột phải chứa dữ liệu số (numeric).
+- Cần ít nhất **3 dòng hợp lệ** sau khi loại bỏ các giá trị không phải số.
+- Cột đầu tiên được xem là `X`, cột thứ hai là `Y`.
+
+### Ví dụ request
+
+```bash
+curl -X POST http://localhost:8000/pre_processing/pearson_correlation ^
+  -F "file=@backend/app/mining/tienxuly.xlsx"
+```
+
+### Output
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `col_x` | string | Tên cột X |
+| `col_y` | string | Tên cột Y |
+| `n` | number | Số quan sát hợp lệ |
+| `mean_x` | number | Trung bình của X |
+| `mean_y` | number | Trung bình của Y |
+| `mean_x_times_mean_y` | number | Tích của `mean_x` và `mean_y` |
+| `mean_xy` | number | Trung bình của tích `X * Y` |
+| `std_x` | number | Độ lệch chuẩn của X (mẫu, ddof=1) |
+| `std_y` | number | Độ lệch chuẩn của Y (mẫu, ddof=1) |
+| `var_x` | number | Phương sai của X (mẫu, ddof=1) |
+| `var_y` | number | Phương sai của Y (mẫu, ddof=1) |
+| `cov` | number | Hiệp phương sai của X và Y |
+| `linear_regression_formula` | string | Phương trình hồi quy dạng `Y = a + bX` |
+| `r` | number | Hệ số tương quan Pearson |
+| `conclusion` | string | Nhận xét mức độ tương quan bằng tiếng Việt |
+| `chart` | string | Biểu đồ scatter plot dạng base64 PNG |
+
+### Ý nghĩa trường `conclusion`
+
+Backend tự động diễn giải hệ số `r` theo thang đo:
+
+| Điều kiện | Kết quả |
+|---|---|
+| `r = 1.0` | Tương quan tuyến tính hoàn hảo |
+| `r >= 0.9` | Mối tương quan dương/âm rất mạnh |
+| `r >= 0.7` | Mối tương quan dương/âm mạnh |
+| `r >= 0.5` | Mối tương quan dương/âm trung bình |
+| `r >= 0.3` | Mối tương quan dương/âm yếu |
+| `r < 0.3` | Mối tương quan rất yếu hoặc không có tương quan tuyến tính |
+
+### Cách dùng trường `chart` phía frontend
+
+Trường `chart` là chuỗi base64 của ảnh PNG. Để hiển thị:
+
+```html
+<img src="data:image/png;base64,{{chart}}" />
+```
+
+### Ví dụ response
+
+```json
+{
+  "col_x": "X",
+  "col_y": "Y",
+  "n": 10,
+  "mean_x": 5.5,
+  "mean_y": 12.3,
+  "mean_x_times_mean_y": 67.65,
+  "mean_xy": 74.2,
+  "std_x": 3.02765,
+  "std_y": 4.11816,
+  "var_x": 9.16667,
+  "var_y": 16.9589,
+  "cov": 11.38889,
+  "linear_regression_formula": "Y = 5.6241 + 1.2154X",
+  "r": 0.912345,
+  "conclusion": "Mối tương quan dương rất mạnh (r ≈ 0.9123)",
+  "chart": "iVBORw0KGgoAAAANSUhEUgAA..."
+}
+```
+
+---
+
+## 6. Nhóm Frequent Itemsets and Rules
+
+## 6.1. `POST /frequent-itemsets-rules/analyze`
+
+### Mục đích
+
+Phân tích tập dữ liệu giao dịch để tìm:
+
+- Tập phổ biến (Frequent Itemsets) theo thuật toán Apriori
+- Tập phổ biến tối đại (Maximal Frequent Itemsets)
+- Luật kết hợp (Association Rules) theo ngưỡng confidence
+
+### Input
+
+| Trường | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `file` | File | Có | File dữ liệu giao dịch |
+| `min_support` | number | Có | Ngưỡng support tối thiểu, trong khoảng `(0, 1]` |
+| `min_confidence` | number | Có | Ngưỡng confidence tối thiểu, trong khoảng `(0, 1]` |
+
+### Lưu ý về file đầu vào
+
+- File phải có đúng **2 cột**: cột 1 là mã giao dịch (transaction ID), cột 2 là mã hàng (item).
+- Mỗi dòng là một cặp `(transaction_id, item)`.
+- Phải có ít nhất **2 giao dịch** phân biệt.
+
+### Ví dụ định dạng file
+
+
+| transaction_id | item |
+|---|---|
+1|A
+1|B
+1|C
+2|A
+2|C
+3|B
+3|C
+
+
+### Ví dụ request
+
+```bash
+curl -X POST http://localhost:8000/frequent-itemsets-rules/analyze ^
+  -F "file=@backend/app/mining/tapphobien.xlsx" ^
+  -F "min_support=0.5" ^
+  -F "min_confidence=0.7"
+```
+
+### Output
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `min_support` | number | Ngưỡng support đã dùng |
+| `min_confidence` | number | Ngưỡng confidence đã dùng |
+| `frequent_itemsets` | array object | Danh sách tất cả các tập phổ biến |
+| `total_frequent_itemsets` | number | Tổng số tập phổ biến |
+| `maximal_frequent_itemsets` | array object | Danh sách tập phổ biến tối đại |
+| `total_maximal_frequent_itemsets` | number | Tổng số tập phổ biến tối đại |
+| `association_rules` | array object | Danh sách các luật kết hợp |
+| `total_rules` | number | Tổng số luật kết hợp |
+
+### Cấu trúc mỗi phần tử trong `frequent_itemsets` và `maximal_frequent_itemsets`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `itemset` | array string | Danh sách các item trong tập (đã sắp xếp) |
+| `support` | number | Giá trị support |
+| `count` | number | Số giao dịch chứa tập item này |
+
+### Cấu trúc mỗi phần tử trong `association_rules`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `rule` | string | Luật dạng `[antecedent] → [consequent]` |
+| `confidence` | number | Độ tin cậy của luật |
+
+### Ví dụ response
+
+```json
+{
+  "min_mupport": 0.5,
+  "min_confidence": 0.7,
+  "frequent_itemsets": [
+    { "itemset": ["A"], "support": 0.666667, "count": 2 },
+    { "itemset": ["B"], "support": 0.666667, "count": 2 },
+    { "itemset": ["C"], "support": 1.0, "count": 3 },
+    { "itemset": ["A", "C"], "support": 0.666667, "count": 2 },
+    { "itemset": ["B", "C"], "support": 0.666667, "count": 2 }
+  ],
+  "total_frequent_itemsets": 5,
+  "maximal_frequent_itemsets": [
+    { "itemset": ["A", "C"], "support": 0.666667, "count": 2 },
+    { "itemset": ["B", "C"], "support": 0.666667, "count": 2 }
+  ],
+  "total_maximal_frequent_itemsets": 2,
+  "association_rules": [
+    { "rule": "['A'] → ['C']", "confidence": 1.0 },
+    { "rule": "['B'] → ['C']", "confidence": 1.0 }
+  ],
+  "total_rules": 2
+}
+```
+
+---
+
+## 7. Nhóm Clustering
+
+## 7.1. `POST /clustering/k-means`
+
+### Mục đích
+
+Phân cụm dữ liệu bằng thuật toán K-Means. Trả về thông tin từng cụm, vị trí centroid, phân công điểm dữ liệu và chi tiết từng vòng lặp.
+
+### Input
+
+| Trường | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `file` | File | Có | File dữ liệu số |
+| `k` | number | Có | Số cụm muốn phân, phải lớn hơn `0` |
+| `max_iters` | number | Không | Số vòng lặp tối đa, mặc định `100`, phải lớn hơn `0` |
+
+### Lưu ý về file đầu vào
+
+- Tất cả các cột phải là dữ liệu **số** (numeric).
+- Số dòng phải lớn hơn hoặc bằng `k`.
+
+### Ví dụ request
+
+```bash
+curl -X POST http://localhost:8000/clustering/k-means ^
+  -F "file=@backend/app/mining/k-means.xlsx" ^
+  -F "k=2" ^
+  -F "max_iters=100"
+```
+
+### Output
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `graph_data` | array object | Dữ liệu dùng để vẽ biểu đồ cụm, cấu trúc giống `cluster_info` |
+| `cluster_info` | array object | Thông tin chi tiết từng cụm |
+| `iterations` | array object | Chi tiết từng vòng lặp của thuật toán |
+
+### Cấu trúc mỗi phần tử trong `cluster_info`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `cluster_id` | number | Chỉ số cụm, bắt đầu từ `0` |
+| `centroid` | array number | Tọa độ tâm cụm |
+| `points` | array array number | Danh sách các điểm dữ liệu thuộc cụm |
+
+### Cấu trúc mỗi phần tử trong `iterations`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `iteration` | number | Số thứ tự vòng lặp (bắt đầu từ `1`) |
+| `centroids` | array array number | Vị trí các centroid tại vòng lặp này |
+| `partition_matrix` | array number | Nhãn cụm của từng điểm dữ liệu tại vòng lặp này |
+| `error` | number | Tổng bình phương khoảng cách đến centroid (SSE) tại vòng lặp này |
+
+### Ví dụ response rút gọn
+
+```json
+{
+  "graph_data": [
+    {
+      "cluster_id": 0,
+      "centroid": [1.0, 2.0],
+      "points": [[1.0, 2.0], [1.5, 1.8]]
+    },
+    {
+      "cluster_id": 1,
+      "centroid": [5.0, 6.0],
+      "points": [[5.0, 6.0], [4.8, 6.2]]
+    }
+  ],
+  "cluster_info": [
+    {
+      "cluster_id": 0,
+      "centroid": [1.0, 2.0],
+      "points": [[1.0, 2.0], [1.5, 1.8]]
+    },
+    {
+      "cluster_id": 1,
+      "centroid": [5.0, 6.0],
+      "points": [[5.0, 6.0], [4.8, 6.2]]
+    }
+  ],
+  "iterations": [
+    {
+      "iteration": 1,
+      "centroids": [[1.2, 2.1], [5.1, 6.0]],
+      "partition_matrix": [0, 0, 1, 1],
+      "error": 0.53
+    },
+    {
+      "iteration": 2,
+      "centroids": [[1.0, 2.0], [5.0, 6.0]],
+      "partition_matrix": [0, 0, 1, 1],
+      "error": 0.41
+    }
+  ]
+}
+```
+
+---
+
+## 7.2. `POST /clustering/kohonen`
+
+### Mục đích
+
+Phân cụm dữ liệu bằng mạng nơ-ron Kohonen (Self-Organizing Map — SOM). Trả về thông tin neuron chiến thắng của từng điểm dữ liệu và trạng thái lưới SOM sau khi huấn luyện.
+
+### Tham số cố định
+
+Backend dùng các giá trị mặc định sau, **không thể thay đổi qua API**:
+
+| Tham số | Giá trị | Ý nghĩa |
+|---|---|---|
+| `epochs` | `100` | Số vòng lặp huấn luyện |
+| `initial_lr` | `0.5` | Learning rate ban đầu |
+
+### Input
+
+| Trường | Kiểu | Bắt buộc | Ý nghĩa |
+|---|---|---|---|
+| `file` | File | Có | File dữ liệu số |
+| `rows` | number | Có | Số hàng của lưới SOM, phải lớn hơn `0` |
+| `cols` | number | Có | Số cột của lưới SOM, phải lớn hơn `0` |
+
+### Lưu ý về file đầu vào
+
+- Tất cả các cột phải là dữ liệu **số** (numeric).
+
+### Ví dụ request
+
+```bash
+curl -X POST http://localhost:8000/clustering/kohonen ^
+  -F "file=@backend/app/mining/kohonen.xlsx" ^
+  -F "rows=3" ^
+  -F "cols=3"
+```
+
+### Output
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `winning_info` | array object | Thông tin neuron chiến thắng (BMU) của từng điểm dữ liệu |
+| `graph_data` | object | Thông tin toàn bộ lưới SOM sau huấn luyện, dùng để vẽ biểu đồ |
+| `distance_table` | array object | Bảng khoảng cách từ mỗi điểm đến BMU của nó |
+
+### Cấu trúc mỗi phần tử trong `winning_info`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `input_vector` | array number | Vector dữ liệu đầu vào |
+| `winning_vector` | array number | Vector trọng số của neuron chiến thắng |
+| `winning_neuron` | array number | Tọa độ `[row, col]` của neuron chiến thắng trên lưới |
+| `min_distance` | number | Khoảng cách Euclidean từ input đến neuron chiến thắng |
+
+### Cấu trúc trường `graph_data`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `grid_dimensions` | object | Kích thước lưới gồm `rows` và `cols` |
+| `neurons` | array object | Danh sách tất cả các neuron trong lưới |
+
+Mỗi phần tử trong `neurons`:
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `row` | number | Chỉ số hàng của neuron |
+| `col` | number | Chỉ số cột của neuron |
+| `weight_vector` | array number | Vector trọng số của neuron sau huấn luyện |
+
+### Cấu trúc mỗi phần tử trong `distance_table`
+
+| Trường | Kiểu | Ý nghĩa |
+|---|---|---|
+| `vector` | array number | Vector dữ liệu đầu vào |
+| `distance_to_centroid` | number | Khoảng cách Euclidean đến neuron chiến thắng |
+| `neuron_position` | array number | Tọa độ `[row, col]` của neuron chiến thắng |
+
+### Ví dụ response rút gọn
+
+```json
+{
+  "winning_info": [
+    {
+      "input_vector": [1.0, 2.0],
+      "winning_vector": [1.05, 1.98],
+      "winning_neuron": [0, 1],
+      "min_distance": 0.0539
+    },
+    {
+      "input_vector": [5.0, 6.0],
+      "winning_vector": [4.97, 6.01],
+      "winning_neuron": [2, 2],
+      "min_distance": 0.0316
+    }
+  ],
+  "graph_data": {
+    "grid_dimensions": { "rows": 3, "cols": 3 },
+    "neurons": [
+      { "row": 0, "col": 0, "weight_vector": [0.8, 1.5] },
+      { "row": 0, "col": 1, "weight_vector": [1.05, 1.98] },
+      { "row": 0, "col": 2, "weight_vector": [2.1, 3.0] }
+    ]
+  },
+  "distance_table": [
+    {
+      "vector": [1.0, 2.0],
+      "distance_to_centroid": 0.0539,
+      "neuron_position": [0, 1]
+    },
+    {
+      "vector": [5.0, 6.0],
+      "distance_to_centroid": 0.0316,
+      "neuron_position": [2, 2]
+    }
+  ]
+}
+```
+
+## 8. Các lỗi validate thường gặp
 
 Backend hiện tại thường trả lỗi theo dạng:
 
@@ -581,7 +1001,7 @@ Một số lỗi phổ biến:
 - `laplace_alpha <= 0`
 - object trong `x_objects` không tồn tại trong file
 
-## 6. Gợi ý tích hợp frontend
+## 9. Gợi ý tích hợp frontend
 
 - Nên gửi tất cả request dưới dạng `FormData`
 - Với `selected_values_json`, nên dùng `JSON.stringify(...)`
