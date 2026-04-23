@@ -40,49 +40,65 @@ export default function RoughSetPage() {
 
   // ================= CALL API =================
   const handleCalculate = async () => {
-    if (!file) {
-      alert("Vui lòng upload file trước!");
+  if (!file) {
+    alert("Vui lòng upload file trước!");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file); // ✅ đúng key
+
+  let url = "";
+
+  // ===== APPROX =====
+  if (mode === "approx") {
+    if (!targetX || !attributes) {
+      alert("Nhập X và thuộc tính!");
       return;
     }
 
-    const formData = new FormData();
-    formData.append("excel_file", file);
+    formData.append("x_objects", targetX.trim());     // ✅ FIX
+    formData.append("b_attributes", attributes.trim()); // ✅ FIX
 
-    let url = "";
+    url = "http://localhost:8000/rough-set/approximation";
+  }
 
-    if (mode === "approx") {
-      formData.append("target_set", targetX);
-      formData.append("attributes_set", attributes);
-      url = "http://localhost:8000/approximation";
+  // ===== DEPENDENCY =====
+  if (mode === "dependency") {
+    if (!attrA || !attrB) {
+      alert("Nhập decision và condition!");
+      return;
     }
 
-    if (mode === "dependency") {
-      formData.append("target_setA", attrA);
-      formData.append("attributes_setB", attrB);
-      url = "http://localhost:8000/dependency";
-    }
+    formData.append("decision_attr", attrA.trim());      // ✅ FIX
+    formData.append("condition_attrs", attrB.trim());    // ✅ FIX
 
-    if (mode === "rough") {
-      url = "http://localhost:8000/reduct";
-    }
+    url = "http://localhost:8000/rough-set/dependency";
+  }
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        body: formData,
-      });
+  // ===== REDUCT =====
+  if (mode === "rough") {
+    url = "http://localhost:8000/rough-set/reduct";
+  }
 
-      const data = await res.json();
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData,
+    });
 
-      setResult({
-        type: mode,
-        data: data,
-      });
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi gọi API!");
-    }
-  };
+    const data = await res.json();
+
+    setResult({
+      type: mode,
+      data,
+    });
+
+  } catch (err) {
+    console.error(err);
+    alert("Lỗi gọi API!");
+  }
+};
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
@@ -227,59 +243,91 @@ export default function RoughSetPage() {
         <div className="bg-white p-4 rounded shadow">
           <h2 className="text-xl font-bold mb-3">Kết quả</h2>
 
-          {/* APPROX */}
+          {/* ===== APPROX ===== */}
           {result.type === "approx" && (
             <>
               <p><b>Tập X:</b> {targetX}</p>
               <p><b>Thuộc tính:</b> {attributes}</p>
 
               <p className="mt-2 font-semibold">Lớp tương đương:</p>
-              {result.data.equivalence_classes &&
-                Object.entries(result.data.equivalence_classes).map(([k, v]) => (
-                  <p key={k}>{k}: {v.join(", ")}</p>
-                ))}
+              {result.data.equivalence_classes?.map((cls, i) => (
+                <p key={i}>
+                  {Object.entries(cls.attr_values)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
+                  {" → "}
+                  {cls.objects.join(", ")}
+                </p>
+              ))}
 
-              <p><b>Xấp xỉ dưới:</b> {result.data.lower_approx?.join(", ")}</p>
-              <p><b>Xấp xỉ trên:</b> {result.data.upper_approx?.join(", ")}</p>
+              <p>
+                <b>Xấp xỉ dưới:</b>{" "}
+                {result.data.lower_approximation?.join(", ")}
+              </p>
+
+              <p>
+                <b>Xấp xỉ trên:</b>{" "}
+                {result.data.upper_approximation?.join(", ")}
+              </p>
+
               <p><b>Độ chính xác:</b> {result.data.accuracy}</p>
             </>
           )}
 
-          {/* DEPENDENCY */}
+          {/* ===== DEPENDENCY ===== */}
           {result.type === "dependency" && (
             <>
               <p><b>Tập A:</b> {attrA}</p>
               <p><b>Tập B:</b> {attrB}</p>
 
-              <p className="mt-2 font-semibold">Lớp tương đương A:</p>
-              {result.data.equivalence_classes_A &&
-                Object.entries(result.data.equivalence_classes_A).map(([k, v]) => (
+              <p className="mt-2 font-semibold">Lớp quyết định:</p>
+              {Object.entries(result.data.decision_equivalence_classes || {}).map(
+                ([k, v]) => (
                   <p key={k}>{k}: {v.join(", ")}</p>
-                ))}
+                )
+              )}
 
-              <p className="mt-2 font-semibold">Lớp tương đương B:</p>
-              {result.data.equivalence_classes_B &&
-                Object.entries(result.data.equivalence_classes_B).map(([k, v]) => (
-                  <p key={k}>{k}: {v.join(", ")}</p>
-                ))}
+              <p className="mt-2 font-semibold">Lớp điều kiện:</p>
+              {result.data.condition_equivalence_classes?.map((cls, i) => (
+                <p key={i}>
+                  {Object.entries(cls.attr_values)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(", ")}
+                  {" → "}
+                  {cls.objects.join(", ")}
+                </p>
+              ))}
 
               <p className="mt-2">
-                <b>Độ phụ thuộc k:</b> {result.data.dependency_k}
+                <b>Positive region:</b>{" "}
+                {result.data.positive_region?.join(", ")}
+              </p>
+
+              <p>
+                <b>Độ phụ thuộc k:</b> {result.data.dependency_degree}
               </p>
             </>
           )}
 
-          {/* ROUGH */}
+          {/* ===== ROUGH ===== */}
           {result.type === "rough" && (
             <>
-              <p className="font-semibold">Tập rút gọn:</p>
+              <p><b>Dependency:</b> {result.data.dependency_degree}</p>
+
+              <p className="font-semibold mt-2">Tập rút gọn:</p>
               {result.data.reducts?.map((r, i) => (
                 <p key={i}>{r.join(", ")}</p>
               ))}
 
               <p className="mt-2 font-semibold">Luật phân lớp:</p>
-              {result.data.classification_rules?.map((rule, i) => (
-                <p key={i}>{rule}</p>
+              {result.data.top_3_exact_rules?.map((rule, i) => (
+                <p key={i}>
+                  IF{" "}
+                  {Object.entries(rule.conditions)
+                    .map(([k, v]) => `${k}=${v}`)
+                    .join(" AND ")}{" "}
+                  → {rule.decision} (support: {rule.support})
+                </p>
               ))}
             </>
           )}
