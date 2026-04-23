@@ -88,11 +88,13 @@ const handleSubmit = async () => {
 
 	const formData = new FormData();
 	formData.append("file", file);
-	formData.append("decisionColumn", decisionColumn);
-	formData.append("features", JSON.stringify(selectedValues));
+	formData.append("decision_attr", decisionColumn);
+	formData.append("selected_attributes", JSON.stringify(selectedColumns));
+	formData.append("selected_values_json", JSON.stringify(selectedValues));
+	formData.append("laplace_alpha", 1.0);
 
 	try {
-		const res = await fetch("http://localhost:8000/predict", {
+		const res = await fetch("http://localhost:8000/classification/naive-bayes-laplace/predict", {
 			method: "POST",
 			body: formData,
 		});
@@ -108,7 +110,7 @@ const handleSubmit = async () => {
 	return (
 		<div className="flex-1 p-6 bg-gray-100 min-h-screen rounded-2xl">
 		<h1 className="text-2xl font-semibold mb-6">
-			Phân lớp Naive Bayes
+			Phân lớp Naive Bayes (Làm trơn Laplace)
 		</h1>
 
 		<div className="bg-white p-6 rounded-2xl shadow space-y-6">
@@ -180,46 +182,142 @@ const handleSubmit = async () => {
 
 			{/* Result */}
 			{result && (
-				<div className="bg-gray-100 p-4 rounded mt-4 space-y-3">
-					<h2 className="font-semibold">Kết quả:</h2>
+				<div className="bg-gray-100 p-4 rounded mt-4 space-y-6">
 
-					<p><b>Dự đoán:</b> {result.prediction}</p>
-
-					<div>
-					<b>Xác suất ban đầu:</b>
-					{Object.entries(result.details).map(([cls, d]) => (
-						<div key={cls}>
-						P({cls}) = {d.prior}
-						</div>
-					))}
+					{/* ===== PREDICTION ===== */}
+					<div className="text-lg">
+					<b>Dự đoán: </b>
+					<span className="text-red-600 font-bold">
+						{result.predicted_class}
+					</span>
 					</div>
 
+					{/* ===== PRIOR ===== */}
 					<div>
-					<b>Xác suất từng giá trị:</b>
-					{Object.entries(result.details).map(([cls, d]) => (
-						<div key={cls} className="mt-2">
-						<b>Theo {cls}:</b>
-						<ul className="ml-6 list-disc">
-							{Object.entries(d.likelihood).map(([col, val]) => (
-							<li key={col}>
-								{col}: {val}
-							</li>
+					<h3 className="font-semibold mb-2">
+						Xác suất ban đầu P(Y)
+					</h3>
+
+					<div className="bg-white rounded border">
+						<table className="w-full text-sm">
+						<thead className="bg-gray-100">
+							<tr>
+							<th className="px-3 py-2 text-left">Class</th>
+							<th className="px-3 py-2 text-right">P(Y)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{Object.entries(result.prior_probabilities).map(([cls, val]) => (
+							<tr key={cls}>
+								<td className="px-3 py-2 border-b">{cls}</td>
+								<td className="px-3 py-2 border-b text-right text-blue-600 font-semibold">
+								{Number(val).toFixed(4)}
+								</td>
+							</tr>
 							))}
-						</ul>
-						</div>
-					))}
+						</tbody>
+						</table>
+					</div>
 					</div>
 
+					{/* ===== LIKELIHOOD LAPLACE ===== */}
 					<div>
-					<b>Tổng xác suất:</b>
-					<ul className="ml-6 list-disc">
-						{Object.entries(result.probabilities).map(([k, v]) => (
-						<li key={k} className={k === result.prediction ? "text-red-600 font-bold" : ""}>
-							P({k}|X): {v}
-						</li>
-						))}
-					</ul>
+					<h3 className="font-semibold mb-2">
+						Xác suất có điều kiện (Laplace)
+					</h3>
+
+					{Object.entries(result.conditional_probabilities_after_laplace).map(
+						([cls, attrs]) => (
+						<div key={cls} className="mb-4">
+
+							<div className="font-medium text-purple-700 mb-2">
+							Class: {cls}
+							</div>
+
+							<div className="bg-white rounded border">
+							<table className="w-full text-sm">
+								<thead className="bg-gray-100">
+								<tr>
+									<th className="px-3 py-2 text-left">Thuộc tính</th>
+									<th className="px-3 py-2 text-left">Giá trị</th>
+									<th className="px-3 py-2 text-right">P</th>
+								</tr>
+								</thead>
+								<tbody>
+								{Object.entries(attrs).map(([attr, info]) => (
+									<tr key={attr}>
+									<td className="px-3 py-2 border-b">{attr}</td>
+									<td className="px-3 py-2 border-b">
+										{info.selected_value}
+									</td>
+									<td className="px-3 py-2 border-b text-right text-blue-600">
+										{Number(info.probability_after_laplace).toFixed(4)}
+									</td>
+									</tr>
+								))}
+								</tbody>
+							</table>
+							</div>
+
+						</div>
+						)
+					)}
 					</div>
+
+					{/* ===== POSTERIOR ===== */}
+					<div>
+					<h3 className="font-semibold mb-2">
+						Xác suất hậu nghiệm P(Y|X)
+					</h3>
+
+					<div className="bg-white rounded border">
+						<table className="w-full text-sm">
+						<thead className="bg-gray-100">
+							<tr>
+							<th className="px-3 py-2 text-left">Class</th>
+							<th className="px-3 py-2 text-right">Score</th>
+							<th className="px-3 py-2 text-right">P(Y|X)</th>
+							</tr>
+						</thead>
+						<tbody>
+							{Object.entries(result.posterior_probabilities).map(
+							([cls, prob]) => (
+								<tr
+								key={cls}
+								className={
+									cls === result.predicted_class
+									? "bg-green-50 font-semibold"
+									: ""
+								}
+								>
+								<td className="px-3 py-2 border-b">{cls}</td>
+
+								<td className="px-3 py-2 border-b text-right text-gray-600">
+									{Number(result.posterior_scores[cls]).toFixed(6)}
+								</td>
+
+								<td
+									className={`px-3 py-2 border-b text-right ${
+									cls === result.predicted_class
+										? "text-green-600"
+										: ""
+									}`}
+								>
+									{Number(prob).toFixed(4)}
+								</td>
+								</tr>
+							)
+							)}
+						</tbody>
+						</table>
+					</div>
+					</div>
+
+					{/* ===== NOTE ===== */}
+					<div className="bg-yellow-100 text-yellow-800 p-3 rounded">
+					⚠ {result.note}
+					</div>
+
 				</div>
 				)}
 		</div>
