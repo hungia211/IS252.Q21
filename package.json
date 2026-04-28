@@ -3,5 +3,9 @@
     "autoprefixer": "^10.4.27",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2"
+  },
+  "dependencies": {
+    "react-d3-tree": "^3.6.6",
+    "recharts": "^3.8.1"
   }
 }

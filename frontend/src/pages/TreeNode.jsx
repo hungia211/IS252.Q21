@@ -21,7 +21,7 @@ const TreeNode = ({ node }) => {
         {Object.entries(node.children).map(([value, child]) => (
           <div key={value}>
             <div className="text-sm text-gray-600 mb-1">
-              ├── {node.feature} = <b>{value}</b>
+              {node.feature} = <b>{value}</b>
             </div>
 
             <TreeNode node={child} />

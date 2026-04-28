@@ -1,5 +1,51 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseRules } from "../components/parseRules";
+
+/* ================= TREE ================= */
+const AutoFitTree = ({ children }) => {
+	const containerRef = useRef(null);
+	const contentRef = useRef(null);
+	const [scale, setScale] = useState(1);
+
+	useEffect(() => {
+		const updateScale = () => {
+			if (!containerRef.current || !contentRef.current) return;
+
+			const container = containerRef.current;
+			const content = contentRef.current;
+
+			const scaleX = container.offsetWidth / content.scrollWidth;
+			const scaleY = container.offsetHeight / content.scrollHeight;
+
+			const newScale = Math.min(scaleX, scaleY, 1);
+
+			setScale(newScale);
+		};
+
+		updateScale();
+		window.addEventListener("resize", updateScale);
+
+		return () => window.removeEventListener("resize", updateScale);
+	}, []);
+
+	return (
+		<div
+			ref={containerRef}
+			className="w-full h-full flex justify-center items-start overflow-hidden"
+		>
+			<div
+				ref={contentRef}
+				style={{
+					transform: `scale(${scale})`,
+					transformOrigin: "top center",
+					width: "max-content",
+				}}
+			>
+				{children}
+			</div>
+		</div>
+	);
+};
 
 /* ================= TREE NODE ================= */
 const TreeNode = ({ node }) => {
@@ -8,7 +54,7 @@ const TreeNode = ({ node }) => {
 	// ===== LEAF =====
 	if (node.type === "leaf") {
 		return (
-			<div className="bg-green-100 border border-green-300 px-4 py-2 rounded-xl shadow-sm text-center min-w-[110px] hover:shadow-md transition">
+			<div className="bg-green-100 border border-green-300 px-4 py-2 rounded-xl shadow-sm text-center min-w-[110px] hover:shadow-md transition whitespace-nowrap">
 				<div className="font-semibold text-green-700 text-sm">
 					{node.label}
 				</div>
@@ -24,8 +70,8 @@ const TreeNode = ({ node }) => {
 	return (
 		<div className="flex flex-col items-center relative">
 
-			{/* ===== NODE BOX ===== */}
-			<div className="bg-blue-100 border border-blue-300 px-5 py-2 rounded-xl shadow-sm text-center min-w-[130px] hover:shadow-md transition z-10">
+			{/* NODE */}
+			<div className="bg-blue-100 border border-blue-300 px-5 py-2 rounded-xl shadow-sm text-center min-w-[130px] hover:shadow-md transition z-10 whitespace-nowrap">
 				<div className="font-semibold text-blue-700 text-sm">
 					{node.feature}
 				</div>
@@ -34,10 +80,10 @@ const TreeNode = ({ node }) => {
 				</div>
 			</div>
 
-			{/* ===== LINE DỌC ===== */}
+			{/* LINE DỌC */}
 			<div className="w-px h-6 bg-gray-300"></div>
 
-			{/* ===== CHILDREN ===== */}
+			{/* CHILDREN */}
 			<div className="relative flex justify-center">
 
 				{/* LINE NGANG */}
@@ -46,21 +92,23 @@ const TreeNode = ({ node }) => {
 				)}
 
 				<div className="flex gap-4">
-					{children.map(([value, child], index) => (
-						<div key={value} className="flex flex-col items-center relative">
-
-							{/* DOT CONNECT */}
+					{children.map(([value, child]) => (
+						<div
+							key={value}
+							className="flex flex-col items-center relative"
+						>
+							{/* DOT */}
 							<div className="w-2 h-2 bg-gray-400 rounded-full"></div>
 
 							{/* LINE DỌC */}
 							<div className="w-px h-6 bg-gray-300"></div>
 
-							{/* LABEL BADGE */}
-							<div className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full mb-2 shadow-sm">
+							{/* LABEL */}
+							<div className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full mb-2 shadow-sm whitespace-nowrap">
 								{value}
 							</div>
 
-							{/* CHILD NODE */}
+							{/* CHILD */}
 							<TreeNode node={child} />
 						</div>
 					))}
@@ -76,13 +124,11 @@ export default function Gini() {
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
 
-	// chọn file
 	const handleFileChange = (e) => {
 		setFile(e.target.files[0]);
 		setResult(null);
 	};
 
-	// submit
 	const handleSubmit = async () => {
 		if (!file) {
 			alert("Vui lòng chọn file!");
@@ -91,7 +137,7 @@ export default function Gini() {
 
 		const formData = new FormData();
 		formData.append("file", file);
-		formData.append("algorithm", "gini"); // 🔥 QUAN TRỌNG
+		formData.append("algorithm", "gini");
 
 		try {
 			setLoading(true);
@@ -115,7 +161,7 @@ export default function Gini() {
 	};
 
 	return (
-		<div className="p-6 bg-gray-100 min-h-screen">
+		<div className="p-6 bg-gray-100 min-h-screen overflow-hidden">
 
 			{/* TITLE */}
 			<div className="bg-white rounded-xl shadow p-4 mb-4">
@@ -160,9 +206,8 @@ export default function Gini() {
 					</div>
 				</div>
 
-				{/* RIGHT */}
-				<div className="col-span-3 border-l pl-6">
-					<h2 className="text-lg font-semibold mb-4">
+				<div className="col-span-3 border-l pl-6 overflow-hidden">
+					<h2 className="text-lg font-semibold mb-2">
 						Kết quả
 					</h2>
 
@@ -178,7 +223,7 @@ export default function Gini() {
 
 					{/* RESULT */}
 					{result && !result.error && (
-						<div className="bg-gray-50 p-4 rounded-xl border space-y-6 max-h-[600px] overflow-auto">
+						<div className="bg-gray-50 p-4 rounded-xl border space-y-1 overflow-hidden">
 
 							{/* FEATURE SCORES */}
 							<div>
@@ -197,7 +242,7 @@ export default function Gini() {
 								</ul>
 							</div>
 
-							{/* BEST ATTRIBUTE */}
+							{/* BEST */}
 							{result.best_attribute && (
 								<div>
 									<h3 className="font-semibold mb-2">
@@ -211,14 +256,10 @@ export default function Gini() {
 
 							{/* TREE */}
 							{result.tree_structure && (
-								<div>
-									<h3 className="font-semibold mb-2">
-										Cây quyết định
-									</h3>
-
-									<div className="overflow-auto border rounded p-4 bg-white">
+								<div className="border rounded p-4 bg-white ">
+									<AutoFitTree>
 										<TreeNode node={result.tree_structure} />
-									</div>
+									</AutoFitTree>
 								</div>
 							)}
 
@@ -226,7 +267,7 @@ export default function Gini() {
 							{result.tree_representation && (
 								<div>
 									<h3 className="font-semibold mb-2">
-										Luật IF-THEN từ cây quyết định
+										Luật IF-THEN
 									</h3>
 
 									<ul className="space-y-2 text-sm">
@@ -248,9 +289,7 @@ export default function Gini() {
 
 					{/* ERROR */}
 					{result?.error && (
-						<p className="text-red-500">
-							{result.error}
-						</p>
+						<p className="text-red-500">{result.error}</p>
 					)}
 				</div>
 			</div>
