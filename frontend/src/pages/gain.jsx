@@ -1,5 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseRules } from "../components/parseRules";
+
+/* ================= AUTO FIT TREE ================= */
+const AutoFitTree = ({ children }) => {
+	const containerRef = useRef(null);
+	const contentRef = useRef(null);
+	const [scale, setScale] = useState(1);
+
+	useEffect(() => {
+		const updateScale = () => {
+			if (!containerRef.current || !contentRef.current) return;
+
+			const container = containerRef.current;
+			const content = contentRef.current;
+
+			const scaleX = container.offsetWidth / content.scrollWidth;
+			const scaleY = container.offsetHeight / content.scrollHeight;
+
+			const newScale = Math.min(scaleX, scaleY, 1);
+			setScale(newScale);
+		};
+
+		updateScale();
+		window.addEventListener("resize", updateScale);
+
+		return () => window.removeEventListener("resize", updateScale);
+	}, []);
+
+	return (
+		<div
+			ref={containerRef}
+			className="w-full h-full flex justify-center items-start overflow-hidden"
+		>
+			<div
+				ref={contentRef}
+				style={{
+					transform: `scale(${scale})`,
+					transformOrigin: "top center",
+					width: "max-content",
+				}}
+			>
+				{children}
+			</div>
+		</div>
+	);
+};
 
 /* ================= TREE NODE ================= */
 const TreeNode = ({ node }) => {
@@ -8,11 +53,11 @@ const TreeNode = ({ node }) => {
 	// ===== LEAF =====
 	if (node.type === "leaf") {
 		return (
-			<div className="bg-green-100 border border-green-300 px-4 py-2 rounded-xl shadow-sm text-center min-w-[110px] hover:shadow-md transition">
-				<div className="font-semibold text-green-700 text-sm">
+			<div className="bg-green-100 border border-green-300 px-3 py-1.5 rounded-lg text-center min-w-[100px] text-sm whitespace-nowrap">
+				<div className="font-semibold text-green-700">
 					{node.label}
 				</div>
-				<div className="text-xs text-gray-500 mt-1">
+				<div className="text-xs text-gray-500">
 					{node.samples} samples
 				</div>
 			</div>
@@ -22,45 +67,46 @@ const TreeNode = ({ node }) => {
 	const children = Object.entries(node.children);
 
 	return (
-		<div className="flex flex-col items-center relative">
+		<div className="flex flex-col items-center">
 
-			{/* ===== NODE BOX ===== */}
-			<div className="bg-blue-100 border border-blue-300 px-5 py-2 rounded-xl shadow-sm text-center min-w-[130px] hover:shadow-md transition z-10">
-				<div className="font-semibold text-blue-700 text-sm">
+			{/* NODE */}
+			<div className="bg-blue-100 border border-blue-300 px-4 py-1.5 rounded-lg text-center min-w-[120px] text-sm whitespace-nowrap">
+				<div className="font-semibold text-blue-700">
 					{node.feature}
 				</div>
-				<div className="text-xs text-gray-500 mt-1">
+				<div className="text-xs text-gray-500">
 					Gain: {node.score.toFixed(4)}
 				</div>
 			</div>
 
-			{/* ===== LINE DỌC ===== */}
-			<div className="w-px h-6 bg-gray-300"></div>
+			{/* LINE DỌC (giảm chiều cao) */}
+			{children.length > 0 && (
+				<div className="w-px h-4 bg-gray-300"></div>
+			)}
 
-			{/* ===== CHILDREN ===== */}
+			{/* CHILDREN */}
 			<div className="relative flex justify-center">
 
-				{/* LINE NGANG */}
+				{/* LINE NGANG (GIỮ NGUYÊN) */}
 				{children.length > 1 && (
 					<div className="absolute top-0 h-px bg-gray-300 w-full"></div>
 				)}
 
-				<div className="flex gap-4">
-					{children.map(([value, child], index) => (
-						<div key={value} className="flex flex-col items-center relative">
+				<div className="flex gap-3">
+					{children.map(([value, child]) => (
+						<div key={value} className="flex flex-col items-center">
 
-							{/* DOT CONNECT */}
-							<div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+							{/* DOT (nhỏ lại) */}
+							<div className="w-1.5 h-1.5 bg-gray-400 rounded-full"></div>
 
 							{/* LINE DỌC */}
-							<div className="w-px h-6 bg-gray-300"></div>
+							<div className="w-px h-4 bg-gray-300"></div>
 
-							{/* LABEL BADGE */}
-							<div className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full mb-2 shadow-sm">
+							{/* LABEL (giảm margin) */}
+							<div className="text-xs text-gray-600 mb-1 whitespace-nowrap">
 								{value}
 							</div>
 
-							{/* CHILD NODE */}
 							<TreeNode node={child} />
 						</div>
 					))}
@@ -76,13 +122,11 @@ export default function Gain() {
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
 
-	// chọn file
 	const handleFileChange = (e) => {
 		setFile(e.target.files[0]);
 		setResult(null);
 	};
 
-	// submit
 	const handleSubmit = async () => {
 		if (!file) {
 			alert("Vui lòng chọn file!");
@@ -91,15 +135,18 @@ export default function Gain() {
 
 		const formData = new FormData();
 		formData.append("file", file);
-		formData.append("algorithm", "gain"); // 🔥 QUAN TRỌNG
+		formData.append("algorithm", "gain");
 
 		try {
 			setLoading(true);
 
-			const res = await fetch("http://localhost:8000/classification/decision-tree", {
-				method: "POST",
-				body: formData,
-			});
+			const res = await fetch(
+				"http://localhost:8000/classification/decision-tree",
+				{
+					method: "POST",
+					body: formData,
+				}
+			);
 
 			const data = await res.json();
 			setResult(data);
@@ -114,7 +161,6 @@ export default function Gain() {
 	return (
 		<div className="p-6 bg-gray-100 min-h-screen">
 
-			{/* TITLE */}
 			<div className="bg-white rounded-xl shadow p-4 mb-4">
 				<h1 className="text-lg font-semibold">
 					Cây quyết định (Information Gain)
@@ -123,11 +169,9 @@ export default function Gain() {
 
 			<div className="bg-white rounded-2xl shadow-md p-4 grid grid-cols-5 gap-6">
 
-				{/* LEFT */}
 				<div className="col-span-2">
 					<h2 className="text-lg font-semibold mb-4">Nhập dữ liệu</h2>
 
-					<label className="block text-sm mb-2">Upload File</label>
 					<input
 						type="file"
 						accept=".xlsx, .xls, .csv"
@@ -145,19 +189,17 @@ export default function Gain() {
 						<button
 							onClick={handleSubmit}
 							disabled={loading}
-							className={`px-4 py-2 rounded text-white
-								${
-									loading
-										? "bg-gray-400 cursor-not-allowed"
-										: "bg-blue-600 hover:bg-blue-700"
-								}`}
+							className={`px-4 py-2 rounded text-white ${
+								loading
+									? "bg-gray-400"
+									: "bg-blue-600 hover:bg-blue-700"
+							}`}
 						>
 							{loading ? "Đang xử lý..." : "Tính toán"}
 						</button>
 					</div>
 				</div>
 
-				{/* RIGHT */}
 				<div className="col-span-3 border-l pl-6">
 					<h2 className="text-lg font-semibold mb-4">Kết quả</h2>
 
@@ -169,11 +211,10 @@ export default function Gain() {
 						<p className="text-blue-500">Đang xử lý dữ liệu...</p>
 					)}
 
-					{/* ===== RESULT ===== */}
 					{result && !result.error && (
-						<div className="bg-gray-50 p-4 rounded-xl border space-y-6 max-h-[600px] overflow-auto">
+						<div className="bg-gray-50 p-4 rounded-xl border space-y-4 ">
 
-							{/* FEATURE SCORES */}
+							{/* FEATURE */}
 							<div>
 								<h3 className="font-semibold mb-2">
 									Information Gain của từng thuộc tính
@@ -189,7 +230,7 @@ export default function Gain() {
 								</ul>
 							</div>
 
-							{/* BEST ATTRIBUTE */}
+							{/* BEST */}
 							{result.best_attribute && (
 								<div>
 									<h3 className="font-semibold mb-2">
@@ -208,13 +249,15 @@ export default function Gain() {
 										Cây quyết định
 									</h3>
 
-									<div className="overflow-auto border rounded p-4 bg-white">
-										<TreeNode node={result.tree_structure} />
+									<div className="border rounded p-4 bg-white">
+										<AutoFitTree>
+											<TreeNode node={result.tree_structure} />
+										</AutoFitTree>
 									</div>
 								</div>
 							)}
 
-							{/* RULE TEXT */}
+							{/* RULES */}
 							{result.tree_representation && (
 								<div>
 									<h3 className="font-semibold mb-2">
@@ -233,11 +276,9 @@ export default function Gain() {
 									</ul>
 								</div>
 							)}
-
 						</div>
 					)}
 
-					{/* ERROR */}
 					{result?.error && (
 						<p className="text-red-500">{result.error}</p>
 					)}
