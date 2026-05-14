@@ -9,12 +9,9 @@ import Gain from "./pages/gain";
 import Kmean from "./pages/kmean";
 import Kohonen from "./pages/kohonen";
 import Raw from "./pages/raw";
+import HomePage from "./pages/HomePage";
 
 
-
-function DummyPage() {
-  return <div className="p-6">Content</div>;
-}
 
 export default function App() {
   return (
@@ -28,7 +25,7 @@ export default function App() {
       {/* CONTENT */}
       <div className="ml-[280px] p-6 min-h-screen bg-gray-100">
         <Routes>
-          <Route path="/" element={<DummyPage />} />
+          <Route path="/" element={<HomePage />} />
           <Route path="/preprocess" element={<Preprocess />} />
           <Route path="/association" element={<Association />} />
           <Route path="/bayes" element={<Bayes />} />

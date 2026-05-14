@@ -1,4 +1,5 @@
 import { useState } from "react";
+import FilePicker from "../components/FilePicker";
 
 export default function Preprocess() {
   const [file, setFile] = useState(null);
@@ -51,15 +52,11 @@ export default function Preprocess() {
         <div className="col-span-2">
           <h2 className="text-lg font-semibold mb-4">Nhập Dữ Liệu</h2>
 
-          <input
-            type="file"
+          <FilePicker
+            id="preprocess-file"
+            fileName={file?.name}
             onChange={handleFileChange}
-            className="border rounded p-2 w-full"
           />
-
-          {file && (
-            <p className="text-sm mt-1 text-gray-500">{file.name}</p>
-          )}
 
           <button
             onClick={handleUpload}

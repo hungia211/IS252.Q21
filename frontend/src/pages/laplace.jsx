@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import FilePicker from "../components/FilePicker";
 
 export default function NaiveBayes() {
 	const [file, setFile] = useState(null);
@@ -116,11 +117,11 @@ const handleSubmit = async () => {
 		<div className="bg-white p-6 rounded-2xl shadow space-y-6">
 
 			{/* Upload */}
-			<input
-			type="file"
+			<FilePicker
+			id="laplace-file"
 			accept=".xlsx, .xls, .csv"
+			fileName={file?.name}
 			onChange={handleFile}
-			className="border p-2 rounded"
 			/>
 
 			{/* Decision column */}
