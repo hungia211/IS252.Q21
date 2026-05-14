@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import FilePicker from "../components/FilePicker";
 
 export default function Kohonen() {
 	const [rows, setRows] = useState(0);
@@ -203,10 +204,10 @@ export default function Kohonen() {
 					</div>
 
 					<div className="flex items-center gap-4">
-						<input
-							type="file"
+						<FilePicker
+							id="kohonen-file"
+							fileName={file?.name}
 							onChange={(e) => setFile(e.target.files[0])}
-							className="border p-2 rounded"
 						/>
 					</div>
 

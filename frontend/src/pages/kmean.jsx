@@ -1,4 +1,5 @@
 import { useState } from "react";
+import FilePicker from "../components/FilePicker";
 import {
 	ScatterChart,
 	Scatter,
@@ -126,18 +127,12 @@ export default function Preprocess() {
 
 						<div className="w-1/2">
 							<label className="block text-m mb-2">Upload File</label>
-							<input
-								type="file"
+							<FilePicker
+								id="kmean-file"
 								accept=".csv, .xlsx, .xls"
+								fileName={file?.name}
 								onChange={handleFileChange}
-								className="border rounded p-2 w-full"
 							/>
-
-							{file && (
-								<p className="text-sm mt-1 text-gray-500 truncate">
-									{file.name}
-								</p>
-							)}
 						</div>
 					</div>
 

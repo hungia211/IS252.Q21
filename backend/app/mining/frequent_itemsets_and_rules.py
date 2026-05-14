@@ -1,25 +1,36 @@
 from itertools import combinations
+import re
+
 import pandas as pd
 
 
-#  DATA PREPARATION
+def normalize_item(value) -> str:
+    text = str(value).strip()
+    text = re.sub(r"\s+", " ", text)
+    text = re.sub(r"\s+([,.;:])$", r"\1", text)
+    text = re.sub(r"[.;]+$", "", text).strip()
+    return text
+
 
 def build_transaction_list(df: pd.DataFrame) -> list[frozenset]:
     transaction_col = df.columns[0]
     item_col = df.columns[1]
 
+    clean_df = df.copy()
+    clean_df[transaction_col] = clean_df[transaction_col].astype(str).str.strip()
+    clean_df[item_col] = clean_df[item_col].map(normalize_item)
+    clean_df = clean_df[clean_df[item_col] != ""]
+
     transactions = (
-        df.groupby(transaction_col)[item_col]
-        .apply(lambda items: frozenset(items.astype(str).tolist()))
+        clean_df.groupby(transaction_col)[item_col]
+        .apply(lambda items: frozenset(items.tolist()))
         .tolist()
     )
     return transactions
 
 
-#  FREQUENT ITEMSETS  (Apriori)
-
 def compute_support(itemset: frozenset, transactions: list[frozenset]) -> float:
-    count = sum(1 for t in transactions if itemset.issubset(t))
+    count = sum(1 for transaction in transactions if itemset.issubset(transaction))
     return count / len(transactions) if transactions else 0.0
 
 
@@ -36,22 +47,21 @@ def find_frequent_itemsets(
     transactions: list[frozenset],
     min_support: float
 ) -> list[dict]:
-    all_items = frozenset(item for t in transactions for item in t)
-    n = len(transactions)
+    all_items = frozenset(item for transaction in transactions for item in transaction)
+    transaction_count = len(transactions)
 
     result = []
     current_frequent = []
 
-    # Kích thước 1
     for item in all_items:
-        fs = frozenset([item])
-        sup = compute_support(fs, transactions)
-        if sup >= min_support:
-            current_frequent.append(fs)
+        itemset = frozenset([item])
+        support = compute_support(itemset, transactions)
+        if support >= min_support:
+            current_frequent.append(itemset)
             result.append({
-                "itemset": fs,
-                "support": round(sup, 6),
-                "count": round(sup * n),
+                "itemset": itemset,
+                "support": round(support, 6),
+                "count": round(support * transaction_count),
             })
 
     size = 2
@@ -60,18 +70,18 @@ def find_frequent_itemsets(
         current_frequent = []
 
         for candidate in candidates:
-            sup = compute_support(candidate, transactions)
-            if sup >= min_support:
+            support = compute_support(candidate, transactions)
+            if support >= min_support:
                 current_frequent.append(candidate)
                 result.append({
                     "itemset": candidate,
-                    "support": round(sup, 6),
-                    "count": round(sup * n),
+                    "support": round(support, 6),
+                    "count": round(support * transaction_count),
                 })
 
         size += 1
 
-    result.sort(key=lambda x: (len(x["itemset"]), -x["support"]))
+    result.sort(key=lambda item: (len(item["itemset"]), -item["support"], sorted(item["itemset"])))
     return result
 
 
@@ -80,20 +90,18 @@ def find_maximal_frequent_itemsets(frequent_itemsets: list[dict]) -> list[dict]:
     maximal = []
 
     for entry in frequent_itemsets:
-        fs = entry["itemset"]
+        itemset = entry["itemset"]
         is_maximal = not any(
-            fs < other  # fs là tập con thực sự của other
+            itemset < other
             for other in all_itemsets
-            if other != fs
+            if other != itemset
         )
         if is_maximal:
             maximal.append(entry)
 
-    maximal.sort(key=lambda x: (len(x["itemset"]), -x["support"]))
+    maximal.sort(key=lambda item: (len(item["itemset"]), -item["support"], sorted(item["itemset"])))
     return maximal
 
-
-#  ASSOCIATION RULES
 
 def generate_association_rules(
     frequent_itemsets: list[dict],
@@ -101,7 +109,7 @@ def generate_association_rules(
     min_confidence: float
 ) -> list[dict]:
     rules = []
-    freq_map = {fs["itemset"]: fs["support"] for fs in frequent_itemsets}
+    freq_map = {itemset["itemset"]: itemset["support"] for itemset in frequent_itemsets}
 
     for entry in frequent_itemsets:
         itemset = entry["itemset"]
@@ -113,18 +121,14 @@ def generate_association_rules(
                 antecedent = frozenset(antecedent_tuple)
                 consequent = itemset - antecedent
 
-                sup_antecedent = freq_map.get(antecedent)
-                if sup_antecedent is None:
-                    sup_antecedent = compute_support(antecedent, transactions)
+                antecedent_support = freq_map.get(antecedent)
+                if antecedent_support is None:
+                    antecedent_support = compute_support(antecedent, transactions)
 
-                if sup_antecedent == 0:
+                if antecedent_support == 0:
                     continue
 
-                sup_consequent = freq_map.get(consequent)
-                if sup_consequent is None:
-                    sup_consequent = compute_support(consequent, transactions)
-
-                confidence = entry["support"] / sup_antecedent
+                confidence = entry["support"] / antecedent_support
                 if confidence < min_confidence:
                     continue
 
@@ -134,11 +138,14 @@ def generate_association_rules(
                     "confidence": round(confidence, 6),
                 })
 
-    rules.sort(key=lambda x: (len(x["antecedent"]), -x["confidence"]))
+    rules.sort(key=lambda rule: (
+        len(rule["antecedent"]),
+        -rule["confidence"],
+        sorted(rule["antecedent"]),
+        sorted(rule["consequent"]),
+    ))
     return rules
 
-
-#  MAIN ANALYSIS FUNCTION
 
 def analyze_frequent_itemsets_and_rules(
     df: pd.DataFrame,
@@ -147,29 +154,28 @@ def analyze_frequent_itemsets_and_rules(
 ) -> dict:
     if df.shape[1] != 2:
         raise ValueError(
-            f"DataFrame phải có đúng 2 cột (mã giao dịch, mã hàng). "
-            f"Hiện có {df.shape[1]} cột."
+            f"DataFrame must contain exactly 2 columns (transaction_id, item). "
+            f"Found: {df.shape[1]}."
         )
     if not (0.0 < min_support <= 1.0):
-        raise ValueError("min_support phải nằm trong khoảng (0, 1].")
+        raise ValueError("min_support must be in range (0, 1].")
     if not (0.0 < min_confidence <= 1.0):
-        raise ValueError("min_confidence phải nằm trong khoảng (0, 1].")
+        raise ValueError("min_confidence must be in range (0, 1].")
 
-    transactions    = build_transaction_list(df)
+    transactions = build_transaction_list(df)
 
-    frequent_itemsets         = find_frequent_itemsets(transactions, min_support)
+    frequent_itemsets = find_frequent_itemsets(transactions, min_support)
     maximal_frequent_itemsets = find_maximal_frequent_itemsets(frequent_itemsets)
-    association_rules         = generate_association_rules(
+    association_rules = generate_association_rules(
         frequent_itemsets, transactions, min_confidence
     )
 
-    # Serialize frozenset
     def serialize_itemsets(itemsets):
         return [
             {
                 "itemset": sorted(entry["itemset"]),
                 "support": entry["support"],
-                "count":   entry["count"],
+                "count": entry["count"],
             }
             for entry in itemsets
         ]
@@ -177,19 +183,24 @@ def analyze_frequent_itemsets_and_rules(
     def serialize_rules(rules):
         return [
             {
-                "rule":       f"{sorted(r['antecedent'])} → {sorted(r['consequent'])}",
-                "confidence": r["confidence"],
+                "antecedent": sorted(rule["antecedent"]),
+                "consequent": sorted(rule["consequent"]),
+                "rule": (
+                    f"{', '.join(sorted(rule['antecedent']))} -> "
+                    f"{', '.join(sorted(rule['consequent']))}"
+                ),
+                "confidence": rule["confidence"],
             }
-            for r in rules
+            for rule in rules
         ]
 
     return {
-        "min_support":      min_support,
-        "min_confidence":   min_confidence,
-        "frequent_itemsets":               serialize_itemsets(frequent_itemsets),
-        "total_frequent_itemsets":         len(frequent_itemsets),
-        "maximal_frequent_itemsets":       serialize_itemsets(maximal_frequent_itemsets),
+        "min_support": min_support,
+        "min_confidence": min_confidence,
+        "frequent_itemsets": serialize_itemsets(frequent_itemsets),
+        "total_frequent_itemsets": len(frequent_itemsets),
+        "maximal_frequent_itemsets": serialize_itemsets(maximal_frequent_itemsets),
         "total_maximal_frequent_itemsets": len(maximal_frequent_itemsets),
-        "association_rules":               serialize_rules(association_rules),
-        "total_rules":                     len(association_rules),
+        "association_rules": serialize_rules(association_rules),
+        "total_rules": len(association_rules),
     }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { parseRules } from "../components/parseRules";
+import FilePicker from "../components/FilePicker";
 
 /* ================= AUTO FIT TREE ================= */
 const AutoFitTree = ({ children }) => {
@@ -172,18 +173,12 @@ export default function Gain() {
 				<div className="col-span-2">
 					<h2 className="text-lg font-semibold mb-4">Nhập dữ liệu</h2>
 
-					<input
-						type="file"
+					<FilePicker
+						id="gain-file"
 						accept=".xlsx, .xls, .csv"
+						fileName={file?.name}
 						onChange={handleFileChange}
-						className="border rounded p-2 w-full"
 					/>
-
-					{file && (
-						<p className="text-sm mt-2 text-gray-500">
-							{file.name}
-						</p>
-					)}
 
 					<div className="mt-4">
 						<button

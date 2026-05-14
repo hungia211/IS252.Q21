@@ -1,4 +1,5 @@
 import { useState } from "react";
+import FilePicker from "../components/FilePicker";
 
 export default function FrequentItemset() {
   const [file, setFile] = useState(null);
@@ -6,6 +7,15 @@ export default function FrequentItemset() {
   const [minConfidence, setMinConfidence] = useState(0.0);
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const formatItemset = (itemset = []) => itemset.join(", ");
+
+  const formatRule = (rule) => {
+    if (rule.antecedent && rule.consequent) {
+      return `${formatItemset(rule.antecedent)} -> ${formatItemset(rule.consequent)}`;
+    }
+    return rule.rule;
+  };
 
   const handleSubmit = async () => {
     if (!file) {
@@ -55,16 +65,11 @@ export default function FrequentItemset() {
           {/* Upload */}
           <div className="mb-4">
             <label className="block text-sm mb-1">Upload File</label>
-            <input
-              type="file"
+            <FilePicker
+              id="association-file"
+              fileName={file?.name}
               onChange={(e) => setFile(e.target.files[0])}
-              className="border rounded p-2 w-full"
             />
-            {file && (
-              <p className="text-sm mt-1 text-gray-500">
-                {file.name}
-              </p>
-            )}
           </div>
 
           {/* Min Support */}
@@ -154,7 +159,9 @@ export default function FrequentItemset() {
 						{result.frequent_itemsets?.map((item, i) => (
 						<tr key={i} className="hover:bg-gray-50">
 							<td className="px-3 py-2 border-b">
-							{item.itemset.join(", ")}
+							<span className="notranslate" translate="no">
+								{formatItemset(item.itemset)}
+							</span>
 							</td>
 							<td className="px-3 py-2 border-b text-right text-blue-600 font-semibold">
 							{Number(item.support).toFixed(4)}
@@ -179,7 +186,9 @@ export default function FrequentItemset() {
                       key={i}
                       className="bg-green-100 text-green-700 px-3 py-1 rounded-lg"
                     >
-                      {item.itemset.join(", ")}
+                      <span className="notranslate" translate="no">
+                        {formatItemset(item.itemset)}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -209,7 +218,9 @@ export default function FrequentItemset() {
 							
 							{/* RULE */}
 							<td className="px-3 py-2 border-b font-medium">
-							{rule.rule}
+							<span className="notranslate" translate="no">
+								{formatRule(rule)}
+							</span>
 							</td>
 
 							{/* CONFIDENCE */}

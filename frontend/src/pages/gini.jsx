@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { parseRules } from "../components/parseRules";
+import FilePicker from "../components/FilePicker";
 
 /* ================= TREE ================= */
 const AutoFitTree = ({ children }) => {
@@ -178,18 +179,12 @@ export default function Gini() {
 						Nhập dữ liệu
 					</h2>
 
-					<input
-						type="file"
+					<FilePicker
+						id="gini-file"
 						accept=".xlsx, .xls, .csv"
+						fileName={file?.name}
 						onChange={handleFileChange}
-						className="border rounded p-2 w-full"
 					/>
-
-					{file && (
-						<p className="text-sm mt-2 text-gray-500">
-							{file.name}
-						</p>
-					)}
 
 					<div className="mt-4">
 						<button

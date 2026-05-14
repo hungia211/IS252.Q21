@@ -1,5 +1,6 @@
 import { useState } from "react";
 import * as XLSX from "xlsx";
+import FilePicker from "../components/FilePicker";
 
 export default function RoughSetPage() {
   const [file, setFile] = useState(null);
@@ -48,97 +49,88 @@ export default function RoughSetPage() {
 
   // ================= CALL API =================
   const handleCalculate = async () => {
-  if (!file) {
-    alert("Vui lòng upload file trước!");
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append("file", file); 
-
-  let url = "";
-
-  // ===== APPROX =====
-  if (mode === "approx") {
-    if (!targetX || !attributes) {
-      alert("Nhập X và thuộc tính!");
+    if (!file) {
+      alert("Vui lòng upload file trước!");
       return;
     }
 
-    formData.append("x_objects", targetX.trim());    
-    formData.append("b_attributes", attributes.trim()); 
+    const formData = new FormData();
+    formData.append("file", file);
 
-    url = "http://localhost:8000/rough-set/approximation";
-  }
+    let url = "";
 
-  // ===== DEPENDENCY =====
-  if (mode === "dependency") {
-    if (!attrA || !attrB) {
-      alert("Nhập decision và condition!");
-      return;
-    }
-
-    formData.append("decision_attr", attrA.trim());     
-    formData.append("condition_attrs", attrB.trim());   
-
-    url = "http://localhost:8000/rough-set/dependency";
-  }
-
-  // ===== REDUCT =====
-  if (mode === "rough") {
-    url = "http://localhost:8000/rough-set/reduct";
-  }
-
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      body: formData,
-    });
-
-    const data = await res.json();
-
-    setResult({
-      type: mode,
-      data,
-    });
-
-  } catch (err) {
-    console.error(err);
-    alert("Lỗi gọi API!");
-  }
-};
-
-const handleCellClick = (rowIndex, colIndex) => {
-  const value = tableData[rowIndex][colIndex];
-
-  if (rowIndex === 0) {
+    // ===== APPROX =====
     if (mode === "approx") {
-      setAttributes((prev) =>
-        prev ? prev + "," + value : value
-      );
+      if (!targetX || !attributes) {
+        alert("Nhập X và thuộc tính!");
+        return;
+      }
+
+      formData.append("x_objects", targetX.trim());
+      formData.append("b_attributes", attributes.trim());
+
+      url = "http://localhost:8000/rough-set/approximation";
     }
 
+    // ===== DEPENDENCY =====
     if (mode === "dependency") {
-      if (!attrA) {
-        setAttrA(value);
-      } else {
-        setAttrB((prev) =>
-          prev ? prev + "," + value : value
-        );
+      if (!attrA || !attrB) {
+        alert("Nhập decision và condition!");
+        return;
+      }
+
+      formData.append("decision_attr", attrA.trim());
+      formData.append("condition_attrs", attrB.trim());
+
+      url = "http://localhost:8000/rough-set/dependency";
+    }
+
+    // ===== REDUCT =====
+    if (mode === "rough") {
+      url = "http://localhost:8000/rough-set/reduct";
+    }
+
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      setResult({
+        type: mode,
+        data,
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Lỗi gọi API!");
+    }
+  };
+
+  const handleCellClick = (rowIndex, colIndex) => {
+    const value = tableData[rowIndex][colIndex];
+
+    if (rowIndex === 0) {
+      if (mode === "approx") {
+        setAttributes((prev) => (prev ? prev + "," + value : value));
+      }
+
+      if (mode === "dependency") {
+        if (!attrA) {
+          setAttrA(value);
+        } else {
+          setAttrB((prev) => (prev ? prev + "," + value : value));
+        }
+      }
+    } else {
+      if (mode === "approx") {
+        const objectName = tableData[rowIndex][0];
+
+        setTargetX((prev) => (prev ? prev + "," + objectName : objectName));
       }
     }
-  }
-
-  else {
-    if (mode === "approx") {
-      const objectName = tableData[rowIndex][0];
-
-      setTargetX((prev) =>
-        prev ? prev + "," + objectName : objectName
-      );
-    }
-  }
-};
+  };
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen">
@@ -147,14 +139,16 @@ const handleCellClick = (rowIndex, colIndex) => {
       {/* UPLOAD */}
       <div className="bg-white p-4 rounded shadow mb-4">
         <div className="flex items-center gap-4">
-          <label className="font-semibold">Upload File:</label>
-          <input type="file" onChange={handleUpload} />
+          <label className="font-semibold">Nhập dữ liệu:</label>
+          <FilePicker
+            id="raw-file"
+            fileName={fileName}
+            onChange={handleUpload}
+          />
         </div>
 
         {fileName && (
-          <p className="mt-2 text-sm text-gray-600">
-            Tên file: {fileName}
-          </p>
+          <p className="mt-2 text-sm text-gray-600">Tên file: {fileName}</p>
         )}
 
         {/* TABLE */}
@@ -269,9 +263,7 @@ const handleCellClick = (rowIndex, colIndex) => {
             </>
           )}
 
-          {mode === "rough" && (
-            <h2 className="font-bold">Tính tập thô</h2>
-          )}
+          {mode === "rough" && <h2 className="font-bold">Tính tập thô</h2>}
 
           <button
             onClick={handleCalculate}
@@ -290,8 +282,12 @@ const handleCellClick = (rowIndex, colIndex) => {
           {/* ===== APPROX ===== */}
           {result.type === "approx" && (
             <>
-              <p><b>Tập X:</b> {targetX}</p>
-              <p><b>Thuộc tính:</b> {attributes}</p>
+              <p>
+                <b>Tập X:</b> {targetX}
+              </p>
+              <p>
+                <b>Thuộc tính:</b> {attributes}
+              </p>
 
               <p className="mt-2 font-semibold">Lớp tương đương:</p>
               {result.data.equivalence_classes?.map((cls, i) => (
@@ -314,22 +310,30 @@ const handleCellClick = (rowIndex, colIndex) => {
                 {result.data.upper_approximation?.join(", ")}
               </p>
 
-              <p><b>Độ chính xác:</b> {result.data.accuracy}</p>
+              <p>
+                <b>Độ chính xác:</b> {result.data.accuracy}
+              </p>
             </>
           )}
 
           {/* ===== DEPENDENCY ===== */}
           {result.type === "dependency" && (
             <>
-              <p><b>Tập A:</b> {attrA}</p>
-              <p><b>Tập B:</b> {attrB}</p>
+              <p>
+                <b>Tập A:</b> {attrA}
+              </p>
+              <p>
+                <b>Tập B:</b> {attrB}
+              </p>
 
               <p className="mt-2 font-semibold">Lớp quyết định:</p>
-              {Object.entries(result.data.decision_equivalence_classes || {}).map(
-                ([k, v]) => (
-                  <p key={k}>{k}: {v.join(", ")}</p>
-                )
-              )}
+              {Object.entries(
+                result.data.decision_equivalence_classes || {},
+              ).map(([k, v]) => (
+                <p key={k}>
+                  {k}: {v.join(", ")}
+                </p>
+              ))}
 
               <p className="mt-2 font-semibold">Lớp điều kiện:</p>
               {result.data.condition_equivalence_classes?.map((cls, i) => (
@@ -342,10 +346,17 @@ const handleCellClick = (rowIndex, colIndex) => {
                 </p>
               ))}
 
-              <p className="mt-2">
-                <b>Positive region:</b>{" "}
-                {result.data.positive_region?.join(", ")}
-              </p>
+              <div className="mt-2">
+                <p className="font-semibold">Xấp xỉ dưới:</p>
+                {Object.entries(result.data.lower_approximations || {}).map(
+                  ([decisionValue, objects]) => (
+                    <p key={decisionValue}>
+                      <b>{decisionValue}:</b>{" "}
+                      {objects?.length ? objects.join(", ") : "Rỗng"}
+                    </p>
+                  ),
+                )}
+              </div>
 
               <p>
                 <b>Độ phụ thuộc k:</b> {result.data.dependency_degree}
@@ -356,7 +367,9 @@ const handleCellClick = (rowIndex, colIndex) => {
           {/* ===== ROUGH ===== */}
           {result.type === "rough" && (
             <>
-              <p><b>Dependency:</b> {result.data.dependency_degree}</p>
+              <p>
+                <b>Dependency:</b> {result.data.dependency_degree}
+              </p>
 
               <p className="font-semibold mt-2">Tập rút gọn:</p>
               {result.data.reducts?.map((r, i) => (
