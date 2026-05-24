@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import FilePicker from "../components/FilePicker";
 
 export default function Kohonen() {
-	const [rows, setRows] = useState(0);
-	const [cols, setCols] = useState(0);
+	const [rows, setRows] = useState("");
+	const [cols, setCols] = useState("");
 	const [file, setFile] = useState(null);
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
@@ -22,8 +22,8 @@ export default function Kohonen() {
 		}
 
 		const formData = new FormData();
-		formData.append("rows", Number(rows));
-		formData.append("cols", Number(cols));
+		formData.append("rows", parseInt(rows));
+		formData.append("cols", parseInt(cols));	
 		formData.append("file", file);
 
 		try {
@@ -34,7 +34,6 @@ export default function Kohonen() {
 				body: formData,
 			});
 
-			// ❗ bắt lỗi HTTP đúng cách
 			if (!res.ok) {
 				const err = await res.json();
 				throw new Error(err.detail || "Lỗi server");
@@ -51,9 +50,6 @@ export default function Kohonen() {
 		}
 	};
 
-	// =========================
-	// FORMAT DATA (map backend → UI)
-	// =========================
 	const formatted = result
 		? (() => {
 				const best = result.winning_info?.reduce((min, cur) =>
@@ -76,9 +72,6 @@ export default function Kohonen() {
 		})()
 		: null;
 
-	// =========================
-	// DRAW GRAPH (Canvas)
-	// =========================
 	useEffect(() => {
 		if (!formatted || !canvasRef.current) return;
 
@@ -93,9 +86,12 @@ export default function Kohonen() {
 		const rows = Math.max(...formatted.neurons.map(n => n.row)) + 1;
 		const cols = Math.max(...formatted.neurons.map(n => n.col)) + 1;
 
-		// =========================
-		// VẼ GRID (đường nối)
-		// =========================
+		const canvasWidth = cols * cellSize + padding * 2;
+		const canvasHeight = rows * cellSize + padding * 2;
+
+		canvas.width = canvasWidth;
+		canvas.height = canvasHeight;
+
 		ctx.strokeStyle = "#ccc";
 		ctx.lineWidth = 1;
 
@@ -122,9 +118,7 @@ export default function Kohonen() {
 			}
 		}
 
-		// =========================
 		// VẼ NODE
-		// =========================
 		formatted.neurons.forEach((n) => {
 			const x = padding + n.col * cellSize;
 			const y = padding + n.row * cellSize;
@@ -145,9 +139,7 @@ export default function Kohonen() {
 			ctx.fillText(`(${n.row},${n.col})`, x, y);
 		});
 
-		// =========================
 		// WINNER
-		// =========================
 		if (formatted.winner_position) {
 			const [r, c] = formatted.winner_position;
 			const x = padding + c * cellSize;
@@ -163,9 +155,6 @@ export default function Kohonen() {
 			ctx.fillText("WIN", x, y);
 		}
 
-		// =========================
-		// TITLE
-		// =========================
 		ctx.fillStyle = "#000";
 		ctx.font = "16px Arial";
 		ctx.fillText("Lưới Kohonen và Nơron Chiến Thắng", 150, 30);
@@ -184,9 +173,13 @@ export default function Kohonen() {
 						<div>
 							<label className="font-medium mr-6">Số dòng (nơron):</label>
 							<input
-								type="number"
+								type="text"
+								inputMode="numeric"
 								value={rows}
-								onChange={(e) => setRows(Number(e.target.value))}
+								onChange={(e) => {
+									const value = e.target.value.replace(/\D/g, "");
+									setRows(value);
+								}}
 								className="border p-2 rounded w-1/3"
 							/>
 
@@ -195,9 +188,13 @@ export default function Kohonen() {
 						<div>
 							<label className="font-medium mr-6">Số cột (nơron):</label>
 							<input
-								type="number"
+								type="text"
+								inputMode="numeric"
 								value={cols}
-								onChange={(e) => setCols(Number(e.target.value))}
+								onChange={(e) => {
+									const value = e.target.value.replace(/\D/g, "");
+									setCols(value);
+								}}
 								className="border p-2 rounded w-1/3"
 							/>
 						</div>
@@ -253,8 +250,6 @@ export default function Kohonen() {
 
 						<canvas
 							ref={canvasRef}
-							width={600}
-							height={400}
 							className="mx-auto border"
 						/>
 					</div>

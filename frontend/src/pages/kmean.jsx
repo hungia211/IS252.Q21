@@ -11,7 +11,7 @@ import {
 } from "recharts";
 
 export default function Preprocess() {
-	const [k, setK] = useState(2);
+	const [k, setK] = useState("");
 	const [file, setFile] = useState(null);
 	const [result, setResult] = useState(null);
 	const [loading, setLoading] = useState(false);
